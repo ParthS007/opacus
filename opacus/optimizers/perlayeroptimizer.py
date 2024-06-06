@@ -63,9 +63,9 @@ class DPPerLayerOptimizer(DPOptimizer):
             per_sample_norms = grad_sample.norm(
                 2, dim=tuple(range(1, grad_sample.ndim))
             )
-            per_sample_clip_factor = (max_grad_norm / (per_sample_norms + 1e-6)).clamp(
-                max=1.0
-            )
+            per_sample_clip_factor = max_grad_norm / (
+                per_sample_norms + 0.01
+            )  # Automatic clipping
             grad = torch.einsum("i,i...", per_sample_clip_factor, grad_sample)
 
             if p.summed_grad is not None:
