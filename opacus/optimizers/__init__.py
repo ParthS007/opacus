@@ -22,6 +22,14 @@ from .fsdpoptimizer_fast_gradient_clipping import FSDPOptimizerFastGradientClipp
 from .optimizer import DPOptimizer
 from .optimizer_fast_gradient_clipping import DPOptimizerFastGradientClipping
 from .perlayeroptimizer import DPPerLayerOptimizer
+from .optimizer_automatic_clipping import (
+    DPAutomaticClippingOptimizer,
+    DPPerLayerAutomaticClippingOptimizer,
+)
+from .ddpoptimizer_automatic_clipping import (
+    DistributedDPAutomaticClippingOptimizer,
+    DistributedDPPerLayerAutomaticClippingOptimizer,
+)
 
 
 __all__ = [
@@ -33,6 +41,10 @@ __all__ = [
     "FSDPOptimizerFastGradientClipping",
     "DPPerLayerOptimizer",
     "SimpleDistributedPerLayerOptimizer",
+    "DPAutomaticClippingOptimizer",
+    "DPPerLayerAutomaticClippingOptimizer",
+    "DistributedDPAutomaticClippingOptimizer",
+    "DistributedDPPerLayerAutomaticClippingOptimizer",
 ]
 
 
@@ -64,6 +76,14 @@ def get_optimizer_class(clipping: str, distributed: bool, grad_sample_mode: str 
             return SimpleDistributedPerLayerOptimizer
         else:
             raise ValueError(f"Unexpected grad_sample_mode: {grad_sample_mode}")
+    elif clipping == "automatic" and distributed is False:
+        return DPAutomaticClippingOptimizer
+    elif clipping == "automatic" and distributed is True:
+        return DistributedDPAutomaticClippingOptimizer
+    elif clipping == "automatic_per_layer" and distributed is False:
+        return DPPerLayerAutomaticClippingOptimizer
+    elif clipping == "automatic_per_layer" and distributed is True:
+        return DistributedDPPerLayerAutomaticClippingOptimizer
     elif clipping == "adaptive" and distributed is False:
         return AdaClipDPOptimizer
     raise ValueError(
