@@ -17,12 +17,11 @@ from __future__ import annotations
 from typing import Callable, List, Optional
 
 import torch
-from torch.optim import Optimizer
-
 from opacus.optimizers.optimizer_automatic_clipping import (
     DPAutomaticClippingOptimizer,
     DPPerLayerAutomaticClippingOptimizer,
 )
+from torch.optim import Optimizer
 
 
 class DistributedDPAutomaticClippingOptimizer(DPAutomaticClippingOptimizer):
