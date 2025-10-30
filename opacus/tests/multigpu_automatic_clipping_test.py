@@ -115,7 +115,9 @@ def demo_basic(rank, weight, world_size, dp, clipping):
         if clipping == "automatic":
             assert isinstance(optimizer, DistributedDPAutomaticClippingOptimizer)
         elif clipping == "automatic_per_layer":
-            assert isinstance(optimizer, DistributedDPPerLayerAutomaticClippingOptimizer)
+            assert isinstance(
+                optimizer, DistributedDPPerLayerAutomaticClippingOptimizer
+            )
 
     for x, y in data_loader:
         outputs = ddp_model(x.to(rank))
@@ -167,9 +169,7 @@ class GradientComputationTestAutomaticClipping(unittest.TestCase):
             clipping=None,
         )
 
-        self.assertTrue(
-            torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3)
-        )
+        self.assertTrue(torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3))
 
     @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
     def test_automatic_per_layer_clipping_gradient_correct(self) -> None:
@@ -199,9 +199,7 @@ class GradientComputationTestAutomaticClipping(unittest.TestCase):
             clipping=None,
         )
 
-        self.assertTrue(
-            torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3)
-        )
+        self.assertTrue(torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3))
 
     @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
     def test_automatic_clipping_optimizer_type(self) -> None:

@@ -18,9 +18,12 @@ from __future__ import annotations
 from typing import List
 
 import torch
-from opacus.optimizers.optimizer import _check_processed_flag, _mark_as_processed
+from opacus.optimizers.optimizer import (
+    DPOptimizer,
+    _check_processed_flag,
+    _mark_as_processed,
+)
 from opacus.optimizers.perlayeroptimizer import DPPerLayerOptimizer
-from opacus.optimizers.optimizer import DPOptimizer
 
 
 class DPAutomaticClippingOptimizer(DPOptimizer):
@@ -102,8 +105,9 @@ class DPPerLayerAutomaticClippingOptimizer(DPPerLayerOptimizer):
     Per-layer variant of automatic clipping.
 
     For each parameter (layer), we compute the per-sample clip factor using the
-    corresponding per-layer ``max_grad_norm``:
-        ``per_sample_clip_factor = max_grad_norm / (per_sample_norms + 0.01)``
+    corresponding per-layer ``max_grad_norm``::
+
+        per_sample_clip_factor = max_grad_norm / (per_sample_norms + 0.01)
 
     This allows each layer to have different clipping behavior based on its own
     gradient magnitude distribution, which can improve training stability and
