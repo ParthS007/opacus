@@ -13,12 +13,14 @@
 # limitations under the License.
 
 from .adaclipoptimizer import AdaClipDPOptimizer
+from .ddp_normalized_sgd_optimizer import DistributedNormalizedSGDPOptimizer
 from .ddp_perlayeroptimizer import SimpleDistributedPerLayerOptimizer
 from .ddpoptimizer import DistributedDPOptimizer
 from .ddpoptimizer_fast_gradient_clipping import (
     DistributedDPOptimizerFastGradientClipping,
 )
 from .fsdpoptimizer_fast_gradient_clipping import FSDPOptimizerFastGradientClipping
+from .normalized_sgd_optimizer import NormalizedSGDPOptimizer
 from .optimizer import DPOptimizer
 from .optimizer_fast_gradient_clipping import DPOptimizerFastGradientClipping
 from .perlayeroptimizer import DPPerLayerOptimizer
@@ -27,10 +29,12 @@ from .perlayeroptimizer import DPPerLayerOptimizer
 __all__ = [
     "AdaClipDPOptimizer",
     "DistributedDPOptimizer",
+    "DistributedNormalizedSGDPOptimizer",
     "DPOptimizer",
     "DPOptimizerFastGradientClipping",
     "DistributedDPOptimizerFastGradientlipping",
     "FSDPOptimizerFastGradientClipping",
+    "NormalizedSGDPOptimizer",
     "DPPerLayerOptimizer",
     "SimpleDistributedPerLayerOptimizer",
 ]
@@ -66,6 +70,10 @@ def get_optimizer_class(clipping: str, distributed: bool, grad_sample_mode: str 
             raise ValueError(f"Unexpected grad_sample_mode: {grad_sample_mode}")
     elif clipping == "adaptive" and distributed is False:
         return AdaClipDPOptimizer
+    elif clipping == "normalized_sgd" and distributed is False:
+        return NormalizedSGDPOptimizer
+    elif clipping == "normalized_sgd" and distributed is True:
+        return DistributedNormalizedSGDPOptimizer
     raise ValueError(
         f"Unexpected optimizer parameters. Clipping: {clipping}, distributed: {distributed}"
     )
