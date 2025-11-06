@@ -25,6 +25,7 @@ import torch
 import torch.nn as nn
 from opacus.optimizers.adaclipoptimizer import AdaClipDPOptimizer
 from opacus.optimizers.ddp_perlayeroptimizer import _clip_and_accumulate_parameter
+from opacus.optimizers.normalized_sgd_optimizer import NormalizedSGDPOptimizer
 from opacus.optimizers.optimizer import DPOptimizer
 from opacus.optimizers.perlayeroptimizer import DPPerLayerOptimizer
 
@@ -382,6 +383,98 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
             param.device,
             "summed_grad should be on same device as parameter",
         )
+
+    @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
+    def test_normalized_sgd_optimizer_multidevice_normalize_and_accumulate(self):
+        """Test that NormalizedSGDPOptimizer handles parameters on different devices."""
+        device1 = torch.device("cuda:0")
+        device2 = torch.device("cuda:1")
+
+        model = MultiDeviceModel(device1, device2)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+        # Wrap optimizer with NormalizedSGDPOptimizer
+        dp_optimizer = NormalizedSGDPOptimizer(
+            optimizer=optimizer,
+            noise_multiplier=0.5,
+            regularization_param=0.1,
+            expected_batch_size=4,
+            loss_reduction="mean",
+        )
+
+        # Create batch size for gradients
+        batch_size = 4
+
+        # Simulate per-sample gradients on different devices
+        model.zero_grad()
+        for p in model.parameters():
+            # Create fake per-sample gradients on the same device as the parameter
+            p.grad_sample = torch.randn(batch_size, *p.shape, device=p.device)
+
+        # This should not raise any device mismatch errors
+        try:
+            dp_optimizer.normalize_and_accumulate()
+            success = True
+        except RuntimeError as e:
+            if "Expected all tensors to be on the same device" in str(e):
+                success = False
+                self.fail(f"Device mismatch error in normalize_and_accumulate: {e}")
+            else:
+                raise
+
+        self.assertTrue(
+            success, "normalize_and_accumulate should handle multi-device parameters"
+        )
+
+        # Verify that summed_grad was created on the correct device for each parameter
+        for p in model.parameters():
+            self.assertIsNotNone(p.summed_grad, "summed_grad should be set")
+            self.assertEqual(
+                p.summed_grad.device,
+                p.device,
+                "summed_grad should be on same device as parameter",
+            )
+
+    @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
+    def test_normalized_sgd_optimizer_multidevice_full_step(self):
+        """Test full optimizer step with NormalizedSGD and multi-device model."""
+        device1 = torch.device("cuda:0")
+        device2 = torch.device("cuda:1")
+
+        model = MultiDeviceModel(device1, device2)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+        dp_optimizer = NormalizedSGDPOptimizer(
+            optimizer=optimizer,
+            noise_multiplier=0.0,
+            regularization_param=0.1,
+            expected_batch_size=4,
+            loss_reduction="mean",
+        )
+
+        # Create batch size for gradients
+        batch_size = 4
+
+        # Simulate per-sample gradients
+        model.zero_grad()
+        for p in model.parameters():
+            p.grad_sample = torch.randn(batch_size, *p.shape, device=p.device)
+
+        # Full step should work without device errors
+        try:
+            dp_optimizer.step()
+            success = True
+        except RuntimeError as e:
+            if "Expected all tensors to be on the same device" in str(e):
+                success = False
+                self.fail(f"Device mismatch error in step: {e}")
+            else:
+                raise
+
+        self.assertTrue(success, "step should handle multi-device parameters")
+
+        # Verify regularization_param is set
+        self.assertEqual(dp_optimizer.regularization_param, 0.1)
 
 
 if __name__ == "__main__":
