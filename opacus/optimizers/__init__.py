@@ -18,20 +18,24 @@ from .ddpoptimizer import DistributedDPOptimizer
 from .ddpoptimizer_fast_gradient_clipping import (
     DistributedDPOptimizerFastGradientClipping,
 )
+from .ddppsacoptimizer import DistributedPSACDPOptimizer
 from .fsdpoptimizer_fast_gradient_clipping import FSDPOptimizerFastGradientClipping
 from .optimizer import DPOptimizer
 from .optimizer_fast_gradient_clipping import DPOptimizerFastGradientClipping
 from .perlayeroptimizer import DPPerLayerOptimizer
+from .psacoptimizer import PSACDPOptimizer
 
 
 __all__ = [
     "AdaClipDPOptimizer",
     "DistributedDPOptimizer",
+    "DistributedPSACDPOptimizer",
     "DPOptimizer",
     "DPOptimizerFastGradientClipping",
     "DistributedDPOptimizerFastGradientlipping",
     "FSDPOptimizerFastGradientClipping",
     "DPPerLayerOptimizer",
+    "PSACDPOptimizer",
     "SimpleDistributedPerLayerOptimizer",
 ]
 
@@ -66,6 +70,10 @@ def get_optimizer_class(clipping: str, distributed: bool, grad_sample_mode: str 
             raise ValueError(f"Unexpected grad_sample_mode: {grad_sample_mode}")
     elif clipping == "adaptive" and distributed is False:
         return AdaClipDPOptimizer
+    elif clipping == "psac" and distributed is False:
+        return PSACDPOptimizer
+    elif clipping == "psac" and distributed is True:
+        return DistributedPSACDPOptimizer
     raise ValueError(
         f"Unexpected optimizer parameters. Clipping: {clipping}, distributed: {distributed}"
     )
