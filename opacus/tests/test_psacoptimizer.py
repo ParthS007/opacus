@@ -54,13 +54,9 @@ class PSACOptimizerTest(unittest.TestCase):
             max_grad_norm=1.0,
             expected_batch_size=self.batch_size,
             r=0.01,
-            tau0=0.1,
-            tau1=0.5,
         )
 
         self.assertEqual(dp_optimizer.r, 0.01)
-        self.assertEqual(dp_optimizer.tau0, 0.1)
-        self.assertEqual(dp_optimizer.tau1, 0.5)
         self.assertEqual(dp_optimizer.max_grad_norm, 1.0)
         self.assertEqual(dp_optimizer.noise_multiplier, 1.0)
 
@@ -75,45 +71,6 @@ class PSACOptimizerTest(unittest.TestCase):
                 r=-0.01,
             )
 
-    def test_init_invalid_tau(self):
-        """Test that invalid tau values raise ValueError."""
-        with self.assertRaises(ValueError):
-            PSACDPOptimizer(
-                optimizer=self.optimizer,
-                noise_multiplier=1.0,
-                max_grad_norm=1.0,
-                expected_batch_size=self.batch_size,
-                tau0=0.5,
-                tau1=0.1,  # tau0 >= tau1 should raise error
-            )
-
-    def test_compute_non_monotonic_weight(self):
-        """Test the non-monotonic weight function."""
-        dp_optimizer = PSACDPOptimizer(
-            optimizer=self.optimizer,
-            noise_multiplier=1.0,
-            max_grad_norm=1.0,
-            expected_batch_size=self.batch_size,
-            r=0.01,
-            tau0=0.1,
-            tau1=0.5,
-        )
-
-        # Test with different gradient norms
-        grad_norms = torch.tensor([0.05, 0.15, 0.3, 0.6, 1.0])
-        weights = dp_optimizer._compute_non_monotonic_weight(grad_norms)
-
-        # Weights should be positive
-        self.assertTrue(torch.all(weights > 0))
-
-        # Small norm (< tau0) should have increasing weight
-        self.assertLess(weights[0], weights[1])
-
-        # Medium norm (tau0 <= norm < tau1) should have weight ~1.0
-        self.assertAlmostEqual(weights[2].item(), 1.0, places=2)
-
-        # Large norm (>= tau1) should have decreasing weight
-        self.assertGreater(weights[3], weights[4])
 
     def test_compute_per_sample_adaptive_clip_norms(self):
         """Test per-sample adaptive clipping norm computation."""
@@ -123,8 +80,6 @@ class PSACOptimizerTest(unittest.TestCase):
             max_grad_norm=1.0,
             expected_batch_size=self.batch_size,
             r=0.01,
-            tau0=0.1,
-            tau1=0.5,
         )
 
         per_sample_norms = torch.tensor([0.05, 0.3, 0.6, 1.0])
@@ -138,6 +93,14 @@ class PSACOptimizerTest(unittest.TestCase):
 
         # Each sample should have its own adaptive threshold
         self.assertEqual(len(clip_norms), len(per_sample_norms))
+        
+        # Test that the weight function is non-monotonic
+        # For small norms, weight should be higher (less clipping)
+        # For large norms, weight should be lower (more clipping)
+        small_norm_clip = clip_norms[0] / dp_optimizer.max_grad_norm
+        large_norm_clip = clip_norms[-1] / dp_optimizer.max_grad_norm
+        # Small norm should have higher relative clip threshold
+        self.assertGreater(small_norm_clip, large_norm_clip)
 
     def test_clip_and_accumulate(self):
         """Test clip_and_accumulate with per-sample adaptive clipping."""
@@ -149,8 +112,6 @@ class PSACOptimizerTest(unittest.TestCase):
             max_grad_norm=1.0,
             expected_batch_size=self.batch_size,
             r=0.01,
-            tau0=0.1,
-            tau1=0.5,
         )
 
         # Create fake per-sample gradients
@@ -282,8 +243,6 @@ class PSACOptimizerTest(unittest.TestCase):
             max_grad_norm=1.0,
             expected_batch_size=self.batch_size,
             r=0.01,
-            tau0=0.1,
-            tau1=0.5,
         )
 
         # Create gradients with very different norms
@@ -295,6 +254,15 @@ class PSACOptimizerTest(unittest.TestCase):
         # Different norms should result in different clip thresholds
         # (though they may be similar due to the weight function)
         self.assertTrue(len(set(clip_norms.tolist())) > 1)
+        
+        # Verify the weight function behavior: smaller norms get higher clip thresholds
+        # (relative to their norm size)
+        for i in range(len(per_sample_norms) - 1):
+            norm_ratio = per_sample_norms[i] / (per_sample_norms[i+1] + 1e-8)
+            clip_ratio = clip_norms[i] / (clip_norms[i+1] + 1e-8)
+            # Smaller norm should have relatively higher clip threshold
+            if norm_ratio < 1.0:
+                self.assertGreater(clip_ratio, norm_ratio)
 
     def test_default_parameters(self):
         """Test that default parameters work correctly."""
@@ -307,8 +275,6 @@ class PSACOptimizerTest(unittest.TestCase):
 
         # Default values should be set
         self.assertEqual(dp_optimizer.r, 0.01)
-        self.assertEqual(dp_optimizer.tau0, 0.1)
-        self.assertEqual(dp_optimizer.tau1, 0.5)
 
 
 if __name__ == "__main__":
