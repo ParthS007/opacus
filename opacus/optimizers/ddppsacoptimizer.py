@@ -41,8 +41,6 @@ class DistributedPSACDPOptimizer(PSACDPOptimizer, DistributedDPOptimizer):
         max_grad_norm: float,
         expected_batch_size: Optional[int],
         r: float = 0.01,
-        tau0: float = 0.1,
-        tau1: float = 0.5,
         loss_reduction: str = "mean",
         generator=None,
         secure_mode: bool = False,
@@ -52,17 +50,16 @@ class DistributedPSACDPOptimizer(PSACDPOptimizer, DistributedDPOptimizer):
         Args:
             optimizer: wrapped optimizer.
             noise_multiplier: noise multiplier for differential privacy
-            max_grad_norm: initial/upper bound for per-sample clipping norms.
-                This serves as an upper bound; actual clipping norms adapt per-sample.
+            max_grad_norm: upper bound for per-sample clipping norms (C in the paper).
+                This serves as a scaling factor for the adaptive clipping thresholds.
             expected_batch_size: batch_size used for averaging gradients. When using
                 Poisson sampling averaging denominator can't be inferred from the
                 actual batch size. Required if ``loss_reduction="mean"``, ignored if
                 ``loss_reduction="sum"``
             r: hyperparameter for the non-monotonic weight function (default: 0.01).
-                Controls the shape of the adaptive weight function. Typically set to
-                0.1 or smaller values like 0.01.
-            tau0: lower threshold parameter for adaptive weight function (default: 0.1)
-            tau1: upper threshold parameter for adaptive weight function (default: 0.5)
+                Controls the adaptation level. The weight function is:
+                w(||g||) = (||g|| + r) / (||g||^2 + r*||g|| + r)
+                Typically r is set to 0.01 or 0.1. Smaller values give more adaptation.
             loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
                 is a sum or a mean operation. Can take values "sum" or "mean"
             generator: torch.Generator() object used as a source of randomness for
@@ -80,8 +77,6 @@ class DistributedPSACDPOptimizer(PSACDPOptimizer, DistributedDPOptimizer):
             max_grad_norm=max_grad_norm,
             expected_batch_size=expected_batch_size,
             r=r,
-            tau0=tau0,
-            tau1=tau1,
             loss_reduction=loss_reduction,
             generator=generator,
             secure_mode=secure_mode,

@@ -110,8 +110,6 @@ def demo_basic(rank, weight, world_size, dp):
             poisson_sampling=False,
             clipping="psac",
             r=0.01,
-            tau0=0.1,
-            tau1=0.5,
         )
         assert isinstance(optimizer, DistributedPSACDPOptimizer)
 
