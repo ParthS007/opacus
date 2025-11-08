@@ -57,7 +57,7 @@ class PSACDPOptimizer(DPOptimizer):
         noise_multiplier: float,
         max_grad_norm: float,
         expected_batch_size: Optional[int],
-        r: float = 0.01,
+        r: float = 0.1,
         loss_reduction: str = "mean",
         generator=None,
         secure_mode: bool = False,
